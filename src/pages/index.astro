@@ -236,12 +236,11 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           };
 
           const queueSpotifyLinkFadeTask = (newUrl: string, shouldShow: boolean) => {
-              const isChangedUrl = spotifyLink.href !== newUrl;
-              const isChangedVisibility = isVisible(spotifyLink) !== shouldShow;
-              queueFadeTask(spotifyLink, isChangedUrl || isChangedVisibility, () => {
-                  spotifyLink.href = newUrl;
-                  updateVisibilityClasses(spotifyLink, shouldShow);
-              });
+            const isChangedVisibility = isVisible(spotifyLink) !== shouldShow;
+            queueFadeTask(spotifyLink, isChangedVisibility, () => {
+              updateVisibilityClasses(spotifyLink, shouldShow);
+              spotifyLink.href = newUrl;
+            });
           };
 
           const newStatusText = data.track ? (data.isPlaying ? 'NOW PLAYING' : 'PAUSED') : 'NOT PLAYING';
