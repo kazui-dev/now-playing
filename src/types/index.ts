@@ -8,6 +8,7 @@ export interface NowPlayingTrack {
 }
 
 export interface NowPlayingResponse {
+  durationMs: number;
   isPlaying: boolean;
   track?: NowPlayingTrack;
   progressMs?: number;
