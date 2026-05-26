@@ -3,7 +3,8 @@ import '../styles/global.css';
 import ThemeSelector from '@/components/ThemeSelector.astro';
 import ThemeScript from '@/components/ThemeScript.astro';
 import { RefreshCw, Mail } from '@lucide/astro';
-import SpotifyIcon from '../assets/SpotifyGreen.svg';
+import SpotifyIcon from '../assets/spotify-icon.svg';
+import GoogleIcon from '../assets/google-icon.svg';
 ---
 
 <!DOCTYPE html>
@@ -114,6 +115,16 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
               <SpotifyIcon class="size-5 mr-2" />
               Spotifyで開く
             </a>
+            <a
+              id="googleSearchLink"
+              class="mt-6 ml-3 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:border-slate-500 dark:hover:border-slate-400 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <GoogleIcon class="size-5 mr-2" />
+              Googleで検索
+            </a>
           </div>
         </div>
       </section>
@@ -152,6 +163,7 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
         duration: document.getElementById('durationTime') as HTMLSpanElement,
         progress: document.getElementById('progressBar') as HTMLDivElement,
         spotify: document.getElementById('spotifyLink') as HTMLAnchorElement,
+        google: document.getElementById('googleSearchLink') as HTMLAnchorElement,
       };
 
       const fadeDurationMs = 150;
@@ -210,6 +222,7 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
         updateEl(els.artists, t?.artists?.join(' / ') || '', !!t?.artists?.length);
         updateEl(els.album, t?.album || '', !!t?.album);
         updateEl(els.spotify, null, !!t?.spotifyUrl, t?.spotifyUrl || '#');
+        updateEl(els.google, null, !!t, t ? `https://www.google.com/search?q=${encodeURIComponent(t.artists.join(' ') + ' ' + t.title)}` : '#');
         updateEl(els.reload, null, isError);
 
         const imgUrl = t?.imageUrl || '';
