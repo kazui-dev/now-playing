@@ -141,16 +141,18 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
     <script>
       import type { NowPlayingResponse } from '../types';
 
-      const statusLabel = document.getElementById('statusLabel') as HTMLParagraphElement;
-      const trackTitle = document.getElementById('trackTitle') as HTMLHeadingElement;
-      const trackArtists = document.getElementById('trackArtists') as HTMLParagraphElement;
-      const reloadAction = document.getElementById('reloadAction') as HTMLButtonElement;
-      const trackAlbum = document.getElementById('trackAlbum') as HTMLParagraphElement;
-      const trackImage = document.getElementById('trackImage') as HTMLImageElement;
-      const elapsedTime = document.getElementById('elapsedTime') as HTMLSpanElement;
-      const durationTime = document.getElementById('durationTime') as HTMLSpanElement;
-      const progressBar = document.getElementById('progressBar') as HTMLDivElement;
-      const spotifyLink = document.getElementById('spotifyLink') as HTMLAnchorElement;
+      const els = {
+        status: document.getElementById('statusLabel') as HTMLParagraphElement,
+        title: document.getElementById('trackTitle') as HTMLHeadingElement,
+        artists: document.getElementById('trackArtists') as HTMLParagraphElement,
+        reload: document.getElementById('reloadAction') as HTMLButtonElement,
+        album: document.getElementById('trackAlbum') as HTMLParagraphElement,
+        image: document.getElementById('trackImage') as HTMLImageElement,
+        elapsed: document.getElementById('elapsedTime') as HTMLSpanElement,
+        duration: document.getElementById('durationTime') as HTMLSpanElement,
+        progress: document.getElementById('progressBar') as HTMLDivElement,
+        spotify: document.getElementById('spotifyLink') as HTMLAnchorElement,
+      };
 
       const fadeDurationMs = 150;
       const POLL_INTERVAL_MS = 5000;
@@ -160,218 +162,130 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
       let endRefreshRequested = false;
 
       const formatTime = (ms: number) => {
-          const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
-          const totalSeconds = Math.floor(safeMs / 1000);
-          const minutes = Math.floor(totalSeconds / 60);
-          const seconds = totalSeconds % 60;
-          return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+        const totalSeconds = Math.floor(safeMs / 1000);
+        return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`;
       };
 
-      const isSameTrack = (oldData: NowPlayingResponse | null, newData: NowPlayingResponse) => {
-          if (!oldData || !oldData.track || !newData.track) return false;
-          return (
-              oldData.track.title === newData.track.title &&
-              oldData.track.artists.join(' / ') === newData.track.artists.join(' / ') &&
-              oldData.track.album === newData.track.album &&
-              oldData.track.imageUrl === newData.track.imageUrl &&
-              oldData.isPlaying === newData.isPlaying
-          );
+      const isSameTrack = (oldD: NowPlayingResponse | null, newD: NowPlayingResponse) => {
+        return oldD?.track?.title === newD?.track?.title && oldD?.isPlaying === newD?.isPlaying;
       };
 
-      const setArtwork = (url: string) => {
-          if (url) {
-              if (trackImage.dataset.url !== url) {
-                  trackImage.dataset.url = url;
-                  trackImage.classList.remove('opacity-100');
-                  trackImage.classList.add('opacity-0');
-              }
-          } else {
-              trackImage.dataset.url = '';
-              trackImage.classList.remove('opacity-100');
-              trackImage.classList.add('opacity-0');
+      const updateEl = (el: HTMLElement, text: string | null, show: boolean, href?: string) => {
+        const isChanged = (text !== null && el.textContent !== text) || 
+                          (el.classList.contains('opacity-100') !== show) || 
+                          (href && el instanceof HTMLAnchorElement && el.href !== href);
+        
+        if (!isChanged) return;
+
+        el.classList.remove('opacity-100');
+        el.classList.add('opacity-0');
+        if (!show) el.classList.add('pointer-events-none');
+
+        setTimeout(() => {
+          if (text !== null) el.textContent = text;
+          if (href && el instanceof HTMLAnchorElement) el.href = href;
+          
+          if (show) {
+            el.classList.remove('opacity-0', 'pointer-events-none');
+            el.classList.add('opacity-100');
           }
+        }, fadeDurationMs);
       };
 
-      const applyData = (data: NowPlayingResponse) => {
-          if (currentData && isSameTrack(currentData, data)) {
-              serverTimeOffset = data.serverTime - Date.now();
-              currentData = data;
-              return;
-          }
+      const applyData = (data: NowPlayingResponse | null, isError = false) => {
+        if (data && currentData && isSameTrack(currentData, data)) {
+          serverTimeOffset = data.serverTime - Date.now();
+          currentData = data;
+          return;
+        }
 
-          const fadeTasks: { element: HTMLElement; update: () => void }[] = [];
+        const t = data?.track;
+        
+        const statusText = isError ? 'ERROR' : (t ? (data.isPlaying ? 'NOW PLAYING' : 'PAUSED') : 'NOT PLAYING');
+        const titleText = isError ? '取得に失敗しました' : (t?.title || '再生中の曲はありません');
 
-          const queueFadeTask = (el: HTMLElement, isChanged: boolean, updateFunc: () => void) => {
-              if (isChanged) {
-                  fadeTasks.push({ element: el, update: updateFunc });
-              }
-          };
+        updateEl(els.status, statusText, true);
+        updateEl(els.title, titleText, true);
+        updateEl(els.artists, t?.artists?.join(' / ') || '', !!t?.artists?.length);
+        updateEl(els.album, t?.album || '', !!t?.album);
+        updateEl(els.spotify, null, !!t?.spotifyUrl, t?.spotifyUrl || '#');
+        updateEl(els.reload, null, isError);
 
-          const updateVisibilityClasses = (el: HTMLElement, shouldShow: boolean) => {
-              if (shouldShow) {
-                  el.classList.remove('opacity-0', 'pointer-events-none');
-                  el.classList.add('opacity-100');
-              } else {
-                  el.classList.remove('opacity-100');
-                  el.classList.add('opacity-0', 'pointer-events-none');
-              }
-          };
-
-          const isVisible = (el: HTMLElement) => el.classList.contains('opacity-100');
-
-          const queueTextFadeTask = (el: HTMLElement, newText: string, shouldShow: boolean) => {
-              const isChangedText = (el.textContent || '') !== newText;
-              const isChangedVisibility = isVisible(el) !== shouldShow;
-              queueFadeTask(el, isChangedText || isChangedVisibility, () => {
-                  el.textContent = newText;
-                  updateVisibilityClasses(el, shouldShow);
-              });
-          };
-
-          const queueReloadActionFadeTask = () => {
-              if (isVisible(reloadAction)) {
-                  queueFadeTask(reloadAction, true, () => {
-                      updateVisibilityClasses(reloadAction, false);
-                  });
-              }
-          };
-
-          const queueSpotifyLinkFadeTask = (newUrl: string, shouldShow: boolean) => {
-            const isChangedVisibility = isVisible(spotifyLink) !== shouldShow;
-            queueFadeTask(spotifyLink, isChangedVisibility, () => {
-              updateVisibilityClasses(spotifyLink, shouldShow);
-              spotifyLink.href = newUrl;
-            });
-          };
-
-          const newStatusText = data.track ? (data.isPlaying ? 'NOW PLAYING' : 'PAUSED') : 'NOT PLAYING';
-          queueTextFadeTask(statusLabel, newStatusText, true);
-
-          if (!data.track) {
-              queueTextFadeTask(trackTitle, '再生中の曲はありません', true);
-              queueTextFadeTask(trackArtists, '', false);
-              queueTextFadeTask(trackAlbum, '', false);
-              queueSpotifyLinkFadeTask('#', false);
-          } else {
-              queueTextFadeTask(trackTitle, data.track.title || '不明な曲', true);
-              const newArtistsText = data.track.artists.length ? data.track.artists.join(' / ') : '';
-              queueTextFadeTask(trackArtists, newArtistsText, !!newArtistsText);
-              const newAlbumText = data.track.album || '';
-              queueTextFadeTask(trackAlbum, newAlbumText, !!newAlbumText);
-              const newSpotifyUrl = data.track.spotifyUrl || '';
-              queueSpotifyLinkFadeTask(newSpotifyUrl, !!newSpotifyUrl);
-          }
-
-          queueReloadActionFadeTask();
-          setArtwork(data.track?.imageUrl || '');
-
-          fadeTasks.forEach(task => {
-              task.element.classList.remove('opacity-100');
-              task.element.classList.add('opacity-0');
-          });
-
+        const imgUrl = t?.imageUrl || '';
+        if (els.image.dataset.url !== imgUrl) {
+          els.image.dataset.url = imgUrl;
+          els.image.classList.remove('opacity-100');
+          els.image.classList.add('opacity-0');
+          
           setTimeout(() => {
-              currentData = data;
-              serverTimeOffset = data.serverTime - Date.now();
-              endRefreshRequested = false;
-
-              fadeTasks.forEach(task => task.update());
-
-              if (data.track) {
-                  durationTime.textContent = formatTime(data.track.durationMs);
-              } else {
-                  elapsedTime.textContent = '0:00';
-                  durationTime.textContent = '0:00';
-                  progressBar.style.width = '0%';
-              }
-
-              if (data.track?.imageUrl && trackImage.dataset.url === data.track.imageUrl) {
-                  trackImage.onload = () => {
-                      trackImage.classList.remove('opacity-0');
-                      trackImage.classList.add('opacity-100');
-                  };
-                  trackImage.src = data.track.imageUrl;
-              }
+            if (imgUrl) {
+              els.image.onload = () => {
+                els.image.classList.remove('opacity-0');
+                els.image.classList.add('opacity-100');
+              };
+              els.image.src = imgUrl;
+            }
           }, fadeDurationMs);
+        }
+
+        setTimeout(() => {
+          currentData = data;
+          serverTimeOffset = data ? data.serverTime - Date.now() : 0;
+          endRefreshRequested = false;
+
+          if (t) {
+            els.duration.textContent = formatTime(t.durationMs);
+          } else {
+            els.elapsed.textContent = '0:00';
+            els.duration.textContent = '0:00';
+            els.progress.style.width = '0%';
+          }
+        }, fadeDurationMs);
       };
 
       const updateProgress = () => {
-          if (!currentData || !currentData.track) {
-              requestAnimationFrame(updateProgress);
-              return;
-          }
-
-          const durationMs = currentData.track.durationMs || 0;
-          const baseProgress = currentData.progressMs || 0;
-          const now = Date.now() + serverTimeOffset;
-          const startAt = currentData.startAt ?? now - baseProgress;
-          const endAt = currentData.endAt ?? startAt + durationMs;
-          const progressMs = currentData.isPlaying
-              ? Math.min(Math.max(now - startAt, 0), durationMs)
-              : Math.min(baseProgress, durationMs);
-
-          const progressRatio = durationMs > 0 ? progressMs / durationMs : 0;
-          progressBar.style.width = `${Math.min(progressRatio * 100, 100)}%`;
-          elapsedTime.textContent = formatTime(progressMs);
-
-          if (currentData.isPlaying && !endRefreshRequested && now >= endAt) {
-              endRefreshRequested = true;
-              fetchNowPlaying();
-          }
-
+        if (!currentData?.track) {
           requestAnimationFrame(updateProgress);
+          return;
+        }
+
+        const { progressMs, isPlaying, startAt, endAt } = currentData;
+        const durationMs = currentData.track.durationMs || 0; // ← 修正: trackの中から取得
+        const now = Date.now() + serverTimeOffset;
+        const start = startAt ?? now - (progressMs || 0);
+        const end = endAt ?? start + durationMs;
+        
+        const currentMs = isPlaying
+            ? Math.min(Math.max(now - start, 0), durationMs)
+            : Math.min(progressMs || 0, durationMs);
+
+        els.progress.style.width = `${durationMs > 0 ? (currentMs / durationMs) * 100 : 0}%`;
+        els.elapsed.textContent = formatTime(currentMs);
+
+        if (isPlaying && !endRefreshRequested && now >= end) {
+          endRefreshRequested = true;
+          fetchNowPlaying();
+        }
+
+        requestAnimationFrame(updateProgress);
       };
 
       const fetchNowPlaying = async () => {
-          if (isFetching) return;
-          isFetching = true;
-          try {
-              const response = await fetch('/api/now-playing', { cache: 'no-store' });
-              if (!response.ok) {
-                  throw new Error(`Request failed: ${response.status}`);
-              }
-              const data = (await response.json()) as NowPlayingResponse;
-              applyData(data);
-          } catch (error) {
-              statusLabel.textContent = 'ERROR';
-              statusLabel.classList.remove('opacity-0');
-              statusLabel.classList.add('opacity-100');
-
-              trackTitle.textContent = '取得に失敗しました';
-              trackTitle.classList.remove('opacity-0', 'pointer-events-none');
-              trackTitle.classList.add('opacity-100');
-
-              trackArtists.textContent = '';
-              trackArtists.classList.remove('opacity-100');
-              trackArtists.classList.add('opacity-0', 'pointer-events-none');
-
-              reloadAction.classList.remove('opacity-0', 'pointer-events-none');
-              reloadAction.classList.add('opacity-100');
-
-              trackAlbum.textContent = '';
-              trackAlbum.classList.add('opacity-0', 'pointer-events-none');
-
-              trackImage.classList.add('opacity-0'); 
-              trackImage.classList.remove('opacity-100');
-
-              spotifyLink.classList.remove('opacity-100');
-              spotifyLink.classList.add('opacity-0', 'pointer-events-none');
-              spotifyLink.href = '#';
-
-              elapsedTime.textContent = '0:00';
-              durationTime.textContent = '0:00';
-              progressBar.style.width = '0%';
-              
-              currentData = null;
-          } finally {
-              isFetching = false;
-          }
+        if (isFetching) return;
+        isFetching = true;
+        try {
+          const res = await fetch('/api/now-playing', { cache: 'no-store' });
+          if (!res.ok) throw new Error();
+          applyData(await res.json());
+        } catch {
+          applyData(null, true);
+        } finally {
+          isFetching = false;
+        }
       };
 
-      reloadAction.addEventListener('click', () => {
-          fetchNowPlaying();
-      });
-
+      els.reload.addEventListener('click', fetchNowPlaying);
       fetchNowPlaying();
       setInterval(fetchNowPlaying, POLL_INTERVAL_MS);
       requestAnimationFrame(updateProgress);
