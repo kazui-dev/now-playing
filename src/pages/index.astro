@@ -195,6 +195,7 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
       const applyData = (data: NowPlayingResponse) => {
           if (currentData && isSameTrack(currentData, data)) {
               serverTimeOffset = data.serverTime - Date.now();
+              currentData = data;
               return;
           }
 
