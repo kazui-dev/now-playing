@@ -2,6 +2,7 @@
 import '../styles/global.css';
 import ThemeSelector from '@/components/ThemeSelector.astro';
 import ThemeScript from '@/components/ThemeScript.astro';
+import { RefreshCw } from '@lucide/astro';
 ---
 
 <!DOCTYPE html>
@@ -72,10 +73,21 @@ import ThemeScript from '@/components/ThemeScript.astro';
             <h2 id="trackTitle" class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
               -
             </h2>
-            <p id="trackArtists" class="mt-2 text-sm text-slate-600 dark:text-slate-300">
-              -
-            </p>
-            <p id="trackAlbum" class="mt-1 text-sm text-slate-500 dark:text-slate-400 hidden"></p>
+            <div class="mt-2 min-h-7">
+              <p id="trackArtists" class="text-sm text-slate-600 dark:text-slate-300">
+                -
+              </p>
+              <button
+                id="reloadAction"
+                type="button"
+                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+                hidden
+              >
+                <RefreshCw size={16} class="text-slate-500 dark:text-slate-300" />
+                再読み込み
+              </button>
+              <p id="trackAlbum" class="mt-1 text-sm text-slate-500 dark:text-slate-400 hidden"></p>
+            </div>
 
             <div class="mt-6">
               <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
@@ -108,6 +120,7 @@ import ThemeScript from '@/components/ThemeScript.astro';
       const statusLabel = document.getElementById('statusLabel') as HTMLParagraphElement;
       const trackTitle = document.getElementById('trackTitle') as HTMLHeadingElement;
       const trackArtists = document.getElementById('trackArtists') as HTMLParagraphElement;
+      const reloadAction = document.getElementById('reloadAction') as HTMLButtonElement;
       const trackAlbum = document.getElementById('trackAlbum') as HTMLParagraphElement;
       const trackImage = document.getElementById('trackImage') as HTMLImageElement;
       const imagePlaceholder = document.getElementById('imagePlaceholder') as HTMLSpanElement;
@@ -115,6 +128,7 @@ import ThemeScript from '@/components/ThemeScript.astro';
       const durationTime = document.getElementById('durationTime') as HTMLSpanElement;
       const progressBar = document.getElementById('progressBar') as HTMLDivElement;
       const spotifyLink = document.getElementById('spotifyLink') as HTMLAnchorElement;
+      reloadAction.hidden = true;
 
       const POLL_INTERVAL_MS = 5000;
       let currentData: NowPlayingResponse | null = null;
@@ -155,6 +169,8 @@ import ThemeScript from '@/components/ThemeScript.astro';
         currentData = data;
         serverTimeOffset = data.serverTime - Date.now();
         endRefreshRequested = false;
+        reloadAction.hidden = true;
+        trackArtists.hidden = false;
 
         if (!data.track) {
           statusLabel.textContent = 'NOT PLAYING';
@@ -219,7 +235,9 @@ import ThemeScript from '@/components/ThemeScript.astro';
         } catch (error) {
           statusLabel.textContent = 'ERROR';
           trackTitle.textContent = '取得に失敗しました';
-          trackArtists.textContent = 'しばらくして再読み込みしてください';
+          trackArtists.textContent = '';
+          trackArtists.hidden = true;
+          reloadAction.hidden = false;
           trackAlbum.textContent = '';
           setArtwork('');
           setLink('');
@@ -230,6 +248,10 @@ import ThemeScript from '@/components/ThemeScript.astro';
           isFetching = false;
         }
       };
+
+      reloadAction.addEventListener('click', () => {
+        fetchNowPlaying();
+      });
 
       fetchNowPlaying();
       setInterval(fetchNowPlaying, POLL_INTERVAL_MS);
