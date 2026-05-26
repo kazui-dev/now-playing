@@ -74,19 +74,17 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
             <p id="statusLabel" class="text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-400 transition-opacity duration-150 ease-in-out opacity-100">
               LOADING
             </p>
-            <h2 id="trackTitle" class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100 transition-opacity duration-150 ease-in-out opacity-100">
-              -
+            <h2 id="trackTitle" class="mt-2 min-h-8 text-2xl font-semibold text-slate-900 dark:text-slate-100 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none">
             </h2>
             <div class="mt-2 min-h-11 relative">
-              <p id="trackArtists" class="text-sm text-slate-600 dark:text-slate-300 transition-opacity duration-150 ease-in-out opacity-100">
-                -
+              <p id="trackArtists" class="text-sm text-slate-600 dark:text-slate-300 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none">
               </p>
               
               <div class="relative w-full">
                 <button
                   id="reloadAction"
                   type="button"
-                  class="absolute left-0 top-0 mt-1 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"
+                  class="absolute left-0 top-0 mt-1 inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"
                 >
                   <RefreshCw size={16} class="text-slate-500 dark:text-slate-300" />
                   再読み込み
@@ -202,7 +200,10 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           return;
         }
 
-        elementsToFade.forEach(el => el.classList.add('opacity-0'));
+        elementsToFade.forEach(el => {
+          el.classList.remove('opacity-100');
+          el.classList.add('opacity-0');
+        });
         setArtwork(data.track?.imageUrl || '');
 
         setTimeout(() => {
@@ -215,9 +216,16 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           if (!data.track) {
             statusLabel.textContent = 'NOT PLAYING';
             trackTitle.textContent = '再生中の曲はありません';
-            trackArtists.textContent = '-';
-            trackAlbum.textContent = '-';
-            
+            trackTitle.classList.remove('opacity-0', 'pointer-events-none');
+            trackTitle.classList.add('opacity-100');
+
+            trackArtists.textContent = '';
+            trackArtists.classList.remove('opacity-100');
+            trackArtists.classList.add('opacity-0', 'pointer-events-none');
+
+            trackAlbum.textContent = '';
+            trackAlbum.classList.add('opacity-0', 'pointer-events-none');
+
             spotifyLink.classList.add('opacity-0', 'pointer-events-none');
 
             elapsedTime.textContent = '0:00';
@@ -226,9 +234,26 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           } else {
             statusLabel.textContent = data.isPlaying ? 'NOW PLAYING' : 'PAUSED';
             trackTitle.textContent = data.track.title || '不明な曲';
-            trackArtists.textContent = data.track.artists.length ? data.track.artists.join(' / ') : '-';
+            trackTitle.classList.remove('opacity-0', 'pointer-events-none');
+            trackTitle.classList.add('opacity-100');
+
+            if (data.track.artists.length) {
+              trackArtists.textContent = data.track.artists.join(' / ');
+              trackArtists.classList.remove('opacity-0', 'pointer-events-none');
+              trackArtists.classList.add('opacity-100');
+            } else {
+              trackArtists.textContent = '';
+              trackArtists.classList.remove('opacity-100');
+              trackArtists.classList.add('opacity-0', 'pointer-events-none');
+            }
+
             trackAlbum.textContent = data.track.album || '';
-            trackAlbum.classList.add('opacity-100');
+            if (data.track.album) {
+              trackAlbum.classList.remove('opacity-0', 'pointer-events-none');
+              trackAlbum.classList.add('opacity-100');
+            } else {
+              trackAlbum.classList.add('opacity-0', 'pointer-events-none');
+            }
             
             if (data.track.spotifyUrl) {
               spotifyLink.href = data.track.spotifyUrl;
@@ -242,14 +267,15 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           }
 
           if (data.track?.imageUrl && trackImage.dataset.url === data.track.imageUrl) {
-             trackImage.onload = () => {
-                 trackImage.classList.remove('opacity-0');
-                 trackImage.classList.add('opacity-100');
-             };
-             trackImage.src = data.track.imageUrl;
+            trackImage.onload = () => {
+                trackImage.classList.remove('opacity-0');
+                trackImage.classList.add('opacity-100');
+            };
+            trackImage.src = data.track.imageUrl;
           }
 
-          [statusLabel, trackTitle, trackArtists].forEach(el => el.classList.remove('opacity-0'));
+          statusLabel.classList.remove('opacity-0');
+          statusLabel.classList.add('opacity-100');
         }, fadeDurationMs);
       };
 
@@ -293,7 +319,11 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
         } catch (error) {
           statusLabel.textContent = 'ERROR';
           trackTitle.textContent = '取得に失敗しました';
+          trackTitle.classList.remove('opacity-0', 'pointer-events-none');
+          trackTitle.classList.add('opacity-100');
+
           trackArtists.textContent = '';
+          trackArtists.classList.remove('opacity-100');
           trackArtists.classList.add('opacity-0', 'pointer-events-none');
 
           reloadAction.classList.remove('opacity-0', 'pointer-events-none');
