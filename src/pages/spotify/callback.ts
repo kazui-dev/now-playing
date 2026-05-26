@@ -106,14 +106,13 @@ export const GET: APIRoute = async ({ request }) => {
 
   if (!tokenData.refresh_token) {
     return htmlResponse(
-      '<h1>refresh_token が取得できませんでした。</h1><p>すでに同じユーザーで承認済みの場合、refresh_token が返らないことがあります。</p>',
+      '<h1>refresh_token が取得できませんでした。</h1>',
       400,
     );
   }
 
   return htmlResponse(
     `<h1>refresh_token を取得しました</h1>
-<p>以下を環境変数 <code>SPOTIFY_REFRESH_TOKEN</code> に設定してください。</p>
 <pre style="padding: 12px; background: #f4f4f5; border-radius: 8px;">${escapeHtml(tokenData.refresh_token)}</pre>`,
   );
 };
