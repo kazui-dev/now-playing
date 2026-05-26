@@ -1,0 +1,171 @@
+---
+import { Sun, MoonStar, Smartphone, Monitor, Check } from '@lucide/astro';
+---
+
+<div class="theme-selector relative">
+  <button 
+    id="theme-toggle"
+    class="h-9 w-9 p-0 inline-flex items-center justify-center rounded-md hover:bg-slate-200/50 active:bg-slate-200/50 dark:hover:bg-slate-800/50 dark:active:bg-slate-800/50 text-slate-700 dark:text-slate-300 transition-colors [&_svg]:size-5"
+    aria-label="テーマ切り替え"
+    aria-expanded="false"
+    aria-haspopup="true"
+  >
+    <span id="theme-icon-container"></span>
+  </button>
+  
+  <div 
+    id="theme-menu"
+    class="absolute right-0 top-full mt-2 w-56 p-2 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 hidden z-50"
+    role="menu"
+  >
+    <div class="space-y-1">
+      <button
+        data-theme="light"
+        class="theme-option w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-slate-800 dark:active:bg-slate-800 transition-colors"
+        role="menuitem"
+      >
+        <Sun size={18} class="text-slate-600 dark:text-slate-300" />
+        <span class="text-sm font-medium text-slate-800 dark:text-slate-200 flex-1 text-left">ライトモード</span>
+        <Check size={16} class="theme-check text-slate-600 dark:text-slate-300 hidden" />
+      </button>
+      
+      <button
+        data-theme="dark"
+        class="theme-option w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-slate-800 dark:active:bg-slate-800 transition-colors"
+        role="menuitem"
+      >
+        <MoonStar size={18} class="text-slate-600 dark:text-slate-300" />
+        <span class="text-sm font-medium text-slate-800 dark:text-slate-200 flex-1 text-left">ダークモード</span>
+        <Check size={16} class="theme-check text-slate-600 dark:text-slate-300 hidden" />
+      </button>
+      
+      <button
+        data-theme="system"
+        class="theme-option w-full flex items-center gap-2.5 px-3 py-2 rounded-md hover:bg-slate-100 active:bg-slate-100 dark:hover:bg-slate-800 dark:active:bg-slate-800 transition-colors"
+        role="menuitem"
+      >
+        <Smartphone size={18} class="md:hidden text-slate-600 dark:text-slate-300" />
+        <Monitor size={18} class="hidden md:block text-slate-600 dark:text-slate-300" />
+        <span class="text-sm font-medium text-slate-800 dark:text-slate-200 flex-1 text-left">端末の設定を使う</span>
+        <Check size={16} class="theme-check text-slate-600 dark:text-slate-300 hidden" />
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import type { Theme, ResolvedTheme } from '@/lib/theme';
+  import { 
+    THEME_STORAGE_KEY, 
+    getSystemTheme, 
+    getInitialTheme, 
+    applyResolvedTheme,
+    updateThemeColor 
+  } from '@/lib/theme';
+
+  let currentTheme: Theme = 'system';
+  let currentResolvedTheme: ResolvedTheme = 'light';
+
+  const toggle = document.getElementById('theme-toggle');
+  const menu = document.getElementById('theme-menu');
+  const iconContainer = document.getElementById('theme-icon-container');
+  const options = document.querySelectorAll<HTMLButtonElement>('.theme-option');
+
+  const createIcon = (isDark: boolean) => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '20');
+    svg.setAttribute('height', '20');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    
+    if (isDark) {
+      svg.innerHTML = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>';
+    } else {
+      svg.innerHTML = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path>';
+    }
+    
+    return svg;
+  };
+
+  const updateUI = () => {
+    if (iconContainer) {
+      iconContainer.innerHTML = '';
+      iconContainer.appendChild(createIcon(currentResolvedTheme === 'dark'));
+    }
+
+    options.forEach(option => {
+      const themeValue = option.dataset.theme as Theme;
+      const check = option.querySelector('.theme-check');
+      if (check) {
+        check.classList.toggle('hidden', currentTheme !== themeValue);
+      }
+    });
+  };
+
+  const setTheme = (theme: Theme) => {
+    currentTheme = theme;
+    const resolvedTheme = theme === 'system' ? getSystemTheme() : theme;
+    currentResolvedTheme = resolvedTheme;
+    
+    applyResolvedTheme(resolvedTheme);
+    updateThemeColor(resolvedTheme);
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    updateUI();
+  };
+
+  const closeMenu = () => {
+    menu?.classList.add('hidden');
+    toggle?.setAttribute('aria-expanded', 'false');
+  };
+
+  const openMenu = () => {
+    menu?.classList.remove('hidden');
+    toggle?.setAttribute('aria-expanded', 'true');
+  };
+
+  const initTheme = () => {
+    currentTheme = getInitialTheme();
+    currentResolvedTheme = currentTheme === 'system' ? getSystemTheme() : currentTheme;
+    applyResolvedTheme(currentResolvedTheme);
+    updateThemeColor(currentResolvedTheme);
+    updateUI();
+  };
+
+  toggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !menu?.classList.contains('hidden');
+    isOpen ? closeMenu() : openMenu();
+  });
+
+  options.forEach(option => {
+    option.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const theme = option.dataset.theme as Theme;
+      setTheme(theme);
+    });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!menu?.classList.contains('hidden') && 
+        !menu?.contains(e.target as Node) && 
+        e.target !== toggle) {
+      closeMenu();
+    }
+  });
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (currentTheme === 'system') {
+      const resolvedTheme = getSystemTheme();
+      currentResolvedTheme = resolvedTheme;
+      applyResolvedTheme(resolvedTheme);
+      updateThemeColor(resolvedTheme);
+      updateUI();
+    }
+  });
+
+  initTheme();
+</script>

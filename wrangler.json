@@ -1,0 +1,7 @@
+{
+  "name": "now-playing",
+  "compatibility_date": "2024-04-03",
+  "observability": {
+    "enabled": false
+  }
+}

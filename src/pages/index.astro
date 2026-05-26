@@ -1,0 +1,239 @@
+---
+import '../styles/global.css';
+import ThemeSelector from '@/components/ThemeSelector.astro';
+import ThemeScript from '@/components/ThemeScript.astro';
+---
+
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Now Playing</title>
+    <meta name="description" content="Spotifyの再生中の曲を共有します。" />
+    
+    <meta id="themeColorMeta" name="theme-color" content="#ffffff" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <ThemeScript />
+    
+    <style>
+      html {
+        scrollbar-gutter: stable;
+      }
+      
+      body {
+        font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      }
+      
+      .theme-transitioning,
+      .theme-transitioning *,
+      .theme-transitioning *::before,
+      .theme-transitioning *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+    </style>
+  </head>
+  <body class="bg-white dark:bg-slate-900 min-h-screen">
+    <header class="py-6 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-5xl mx-auto flex items-center justify-between">
+        <div class="flex-1"></div>
+        <h1 class="text-xl font-medium text-gray-900 dark:text-slate-100">
+          Now Playing
+        </h1>
+        <div class="flex-1 flex justify-end">
+          <ThemeSelector />
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section class="border border-gray-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 p-6 sm:p-8 shadow-sm">
+        <div class="flex flex-col sm:flex-row gap-6">
+          <div class="relative h-36 w-36 sm:h-40 sm:w-40 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+            <img
+              id="trackImage"
+              alt="Album artwork"
+              class="hidden h-full w-full object-cover"
+            />
+            <span id="imagePlaceholder" class="text-xs text-slate-500 dark:text-slate-300">
+              No Artwork
+            </span>
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <p id="statusLabel" class="text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-400">
+              LOADING
+            </p>
+            <h2 id="trackTitle" class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
+              -
+            </h2>
+            <p id="trackArtists" class="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              -
+            </p>
+            <p id="trackAlbum" class="mt-1 text-sm text-slate-500 dark:text-slate-400 hidden"></p>
+
+            <div class="mt-6">
+              <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span id="elapsedTime">0:00</span>
+                <span id="durationTime">0:00</span>
+              </div>
+              <div class="mt-2 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div id="progressBar" class="h-full w-0 bg-slate-900 dark:bg-slate-100"></div>
+              </div>
+            </div>
+
+            <a
+              id="spotifyLink"
+              class="mt-6 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:border-slate-500 dark:hover:border-slate-400 transition-colors"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              hidden
+            >
+              Spotifyで開く
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      import type { NowPlayingResponse } from '../types';
+
+      const statusLabel = document.getElementById('statusLabel') as HTMLParagraphElement;
+      const trackTitle = document.getElementById('trackTitle') as HTMLHeadingElement;
+      const trackArtists = document.getElementById('trackArtists') as HTMLParagraphElement;
+      const trackAlbum = document.getElementById('trackAlbum') as HTMLParagraphElement;
+      const trackImage = document.getElementById('trackImage') as HTMLImageElement;
+      const imagePlaceholder = document.getElementById('imagePlaceholder') as HTMLSpanElement;
+      const elapsedTime = document.getElementById('elapsedTime') as HTMLSpanElement;
+      const durationTime = document.getElementById('durationTime') as HTMLSpanElement;
+      const progressBar = document.getElementById('progressBar') as HTMLDivElement;
+      const spotifyLink = document.getElementById('spotifyLink') as HTMLAnchorElement;
+
+      const POLL_INTERVAL_MS = 5000;
+      let currentData: NowPlayingResponse | null = null;
+      let serverTimeOffset = 0;
+      let isFetching = false;
+      let endRefreshRequested = false;
+
+      const formatTime = (ms: number) => {
+        const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+        const totalSeconds = Math.floor(safeMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      };
+
+      const setArtwork = (url: string) => {
+        if (url) {
+          trackImage.src = url;
+          trackImage.classList.remove('hidden');
+          imagePlaceholder.classList.add('hidden');
+        } else {
+          trackImage.classList.add('hidden');
+          imagePlaceholder.classList.remove('hidden');
+        }
+      };
+
+      const setLink = (url: string) => {
+        if (url) {
+          spotifyLink.href = url;
+          spotifyLink.hidden = false;
+        } else {
+          spotifyLink.href = '#';
+          spotifyLink.hidden = true;
+        }
+      };
+
+      const applyData = (data: NowPlayingResponse) => {
+        currentData = data;
+        serverTimeOffset = data.serverTime - Date.now();
+        endRefreshRequested = false;
+
+        if (!data.track) {
+          statusLabel.textContent = 'NOT PLAYING';
+          trackTitle.textContent = '再生中の曲はありません';
+          trackArtists.textContent = '-';
+          trackAlbum.textContent = '';
+          setArtwork('');
+          setLink('');
+          elapsedTime.textContent = '0:00';
+          durationTime.textContent = '0:00';
+          progressBar.style.width = '0%';
+          return;
+        }
+
+        statusLabel.textContent = data.isPlaying ? 'NOW PLAYING' : 'PAUSED';
+        trackTitle.textContent = data.track.title || '不明な曲';
+        trackArtists.textContent = data.track.artists.length ? data.track.artists.join(' / ') : '-';
+        trackAlbum.textContent = data.track.album || '';
+        trackAlbum.classList.toggle('hidden', !data.track.album);
+        setArtwork(data.track.imageUrl || '');
+        setLink(data.track.spotifyUrl || '');
+        durationTime.textContent = formatTime(data.track.durationMs);
+      };
+
+      const updateProgress = () => {
+        if (!currentData || !currentData.track) {
+          requestAnimationFrame(updateProgress);
+          return;
+        }
+
+        const durationMs = currentData.track.durationMs || 0;
+        const baseProgress = currentData.progressMs || 0;
+        const now = Date.now() + serverTimeOffset;
+        const startAt = currentData.startAt ?? now - baseProgress;
+        const endAt = currentData.endAt ?? startAt + durationMs;
+        const progressMs = currentData.isPlaying
+          ? Math.min(Math.max(now - startAt, 0), durationMs)
+          : Math.min(baseProgress, durationMs);
+
+        const progressRatio = durationMs > 0 ? progressMs / durationMs : 0;
+        progressBar.style.width = `${Math.min(progressRatio * 100, 100)}%`;
+        elapsedTime.textContent = formatTime(progressMs);
+
+        if (currentData.isPlaying && !endRefreshRequested && now >= endAt) {
+          endRefreshRequested = true;
+          fetchNowPlaying();
+        }
+
+        requestAnimationFrame(updateProgress);
+      };
+
+      const fetchNowPlaying = async () => {
+        if (isFetching) return;
+        isFetching = true;
+        try {
+          const response = await fetch('/api/now-playing', { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`Request failed: ${response.status}`);
+          }
+          const data = (await response.json()) as NowPlayingResponse;
+          applyData(data);
+        } catch (error) {
+          statusLabel.textContent = 'ERROR';
+          trackTitle.textContent = '取得に失敗しました';
+          trackArtists.textContent = 'しばらくして再読み込みしてください';
+          trackAlbum.textContent = '';
+          setArtwork('');
+          setLink('');
+          elapsedTime.textContent = '0:00';
+          durationTime.textContent = '0:00';
+          progressBar.style.width = '0%';
+        } finally {
+          isFetching = false;
+        }
+      };
+
+      fetchNowPlaying();
+      setInterval(fetchNowPlaying, POLL_INTERVAL_MS);
+      requestAnimationFrame(updateProgress);
+    </script>
+  </body>
+</html>
