@@ -71,25 +71,25 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
           </div>
 
           <div class="flex-1 min-w-0">
-            <p id="statusLabel" class="text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-400 transition-opacity duration-300 ease-in-out opacity-100">
+            <p id="statusLabel" class="text-xs font-semibold tracking-widest text-slate-500 dark:text-slate-400 transition-opacity duration-150 ease-in-out opacity-100">
               LOADING
             </p>
-            <h2 id="trackTitle" class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100 transition-opacity duration-300 ease-in-out opacity-100">
+            <h2 id="trackTitle" class="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100 transition-opacity duration-150 ease-in-out opacity-100">
               -
             </h2>
             <div class="mt-2 min-h-11">
-              <p id="trackArtists" class="text-sm text-slate-600 dark:text-slate-300 transition-opacity duration-300 ease-in-out opacity-100">
+              <p id="trackArtists" class="text-sm text-slate-600 dark:text-slate-300 transition-opacity duration-150 ease-in-out opacity-100">
                 -
               </p>
               <button
                 id="reloadAction"
                 type="button"
-                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors transition-opacity duration-300 ease-in-out opacity-0 pointer-events-none"
+                class="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"
               >
                 <RefreshCw size={16} class="text-slate-500 dark:text-slate-300" />
                 再読み込み
               </button>
-              <p id="trackAlbum" class="mt-1 text-sm text-slate-500 dark:text-slate-400 transition-opacity duration-300 ease-in-out opacity-0 pointer-events-none"></p>
+              <p id="trackAlbum" class="mt-1 text-sm text-slate-500 dark:text-slate-400 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"></p>
             </div>
 
             <div class="mt-6">
@@ -104,12 +104,12 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
 
             <a
               id="spotifyLink"
-              class="mt-6 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:border-slate-500 dark:hover:border-slate-400 transition-colors transition-opacity duration-300 ease-in-out opacity-0 pointer-events-none"
+              class="mt-6 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:border-slate-500 dark:hover:border-slate-400 transition-opacity duration-150 ease-in-out opacity-0 pointer-events-none"
               href="#"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <SpotifyIcon class="size-5 mr-1" />
+              <SpotifyIcon class="size-5 mr-2" />
               Spotifyで開く
             </a>
           </div>
@@ -151,9 +151,9 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
       const spotifyLink = document.getElementById('spotifyLink') as HTMLAnchorElement;
       
       const elementsToFade = [statusLabel, trackTitle, trackArtists, reloadAction, trackAlbum, spotifyLink];
-      const fadeDurationMs = 300;
+      const fadeDurationMs = 150;
 
-      const POLL_INTERVAL_MS = 5000;
+      const POLL_INTERVAL_MS = 3000;
       let currentData: NowPlayingResponse | null = null;
       let serverTimeOffset = 0;
       let isFetching = false;
@@ -212,9 +212,8 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
             statusLabel.textContent = 'NOT PLAYING';
             trackTitle.textContent = '再生中の曲はありません';
             trackArtists.textContent = '-';
-            trackAlbum.textContent = '';
+            trackAlbum.textContent = '-';
             
-            trackAlbum.classList.add('opacity-0', 'pointer-events-none');
             spotifyLink.classList.add('opacity-0', 'pointer-events-none');
 
             elapsedTime.textContent = '0:00';
@@ -224,14 +223,8 @@ import SpotifyIcon from '../assets/SpotifyGreen.svg';
             statusLabel.textContent = data.isPlaying ? 'NOW PLAYING' : 'PAUSED';
             trackTitle.textContent = data.track.title || '不明な曲';
             trackArtists.textContent = data.track.artists.length ? data.track.artists.join(' / ') : '-';
-            trackAlbum.textContent = data.track.album || '';
-            
-            if (data.track.album) {
-              trackAlbum.classList.remove('opacity-0', 'pointer-events-none');
-              trackAlbum.classList.add('opacity-100');
-            } else {
-              trackAlbum.classList.add('opacity-0', 'pointer-events-none');
-            }
+            trackAlbum.textContent = data.track.album ? `-${data.track.album}` : '-';
+            trackAlbum.classList.add('opacity-100');
             
             if (data.track.spotifyUrl) {
               spotifyLink.href = data.track.spotifyUrl;
