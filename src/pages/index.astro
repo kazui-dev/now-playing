@@ -3,6 +3,7 @@ import '../styles/global.css';
 import ThemeSelector from '@/components/ThemeSelector.astro';
 import ThemeScript from '@/components/ThemeScript.astro';
 import { RefreshCw, Mail } from '@lucide/astro';
+import SpotifyIcon from '@/assets/spotifyGreen.svg';
 ---
 
 <!DOCTYPE html>
@@ -58,11 +59,11 @@ import { RefreshCw, Mail } from '@lucide/astro';
     <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-1 w-full">
       <section class="border border-gray-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 p-6 sm:p-8 shadow-sm">
         <div class="flex flex-col sm:flex-row gap-6">
-          <div class="relative h-36 w-36 sm:h-42 sm:w-42 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+          <div class="relative mx-auto sm:mx-0 h-36 w-36 sm:h-42 sm:w-42 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
             <img
               id="trackImage"
               alt="Album artwork"
-              class="hidden h-full w-full object-cover"
+              class="absolute inset-0 z-10 h-full w-full object-cover opacity-0 transition-opacity duration-700 ease-out"
             />
             <span id="imagePlaceholder" class="text-xs text-slate-500 dark:text-slate-300">
               No Artwork
@@ -110,6 +111,7 @@ import { RefreshCw, Mail } from '@lucide/astro';
               rel="noopener noreferrer"
               hidden
             >
+              <SpotifyIcon class="size-4 mr-2" />
               Spotifyで開く
             </a>
           </div>
@@ -172,7 +174,7 @@ import { RefreshCw, Mail } from '@lucide/astro';
       const spotifyLink = document.getElementById('spotifyLink') as HTMLAnchorElement;
       reloadAction.hidden = true;
 
-      const POLL_INTERVAL_MS = 5000;
+      const POLL_INTERVAL_MS = 3000;
       let currentData: NowPlayingResponse | null = null;
       let serverTimeOffset = 0;
       let isFetching = false;
@@ -186,14 +188,23 @@ import { RefreshCw, Mail } from '@lucide/astro';
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
       };
 
-      const setArtwork = (url: string) => {
+      const setArtwork = (url: string | null) => {
         if (url) {
-          trackImage.src = url;
-          trackImage.classList.remove('hidden');
-          imagePlaceholder.classList.add('hidden');
+          if (trackImage.dataset.url !== url) {
+            trackImage.dataset.url = url;
+            trackImage.classList.remove('opacity-100');
+            trackImage.classList.add('opacity-0');
+            
+            trackImage.onload = () => {
+              trackImage.classList.remove('opacity-0');
+              trackImage.classList.add('opacity-100');
+            };
+            trackImage.src = url;
+          }
         } else {
-          trackImage.classList.add('hidden');
-          imagePlaceholder.classList.remove('hidden');
+          trackImage.dataset.url = '';
+          trackImage.classList.remove('opacity-100');
+          trackImage.classList.add('opacity-0');
         }
       };
 
