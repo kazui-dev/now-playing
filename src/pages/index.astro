@@ -123,7 +123,7 @@ import GoogleIcon from '../assets/google-icon.svg';
               rel="noopener noreferrer"
             >
               <GoogleIcon class="size-5 mr-2" />
-              Googleで検索
+              検索
             </a>
           </div>
         </div>
@@ -183,10 +183,9 @@ import GoogleIcon from '../assets/google-icon.svg';
         return oldD?.track?.title === newD?.track?.title && oldD?.isPlaying === newD?.isPlaying;
       };
 
-      const updateEl = (el: HTMLElement, text: string | null, show: boolean, href?: string) => {
+      const updateEl = (el: HTMLElement, text: string | null, show: boolean) => {
         const isChanged = (text !== null && el.textContent !== text) || 
-                          (el.classList.contains('opacity-100') !== show) || 
-                          (href && el instanceof HTMLAnchorElement && el.href !== href);
+                          (el.classList.contains('opacity-100') !== show);
         
         if (!isChanged) return;
 
@@ -196,7 +195,6 @@ import GoogleIcon from '../assets/google-icon.svg';
 
         setTimeout(() => {
           if (text !== null) el.textContent = text;
-          if (href && el instanceof HTMLAnchorElement) el.href = href;
           
           if (show) {
             el.classList.remove('opacity-0', 'pointer-events-none');
@@ -221,8 +219,14 @@ import GoogleIcon from '../assets/google-icon.svg';
         updateEl(els.title, titleText, true);
         updateEl(els.artists, t?.artists?.join(' / ') || '', !!t?.artists?.length);
         updateEl(els.album, t?.album || '', !!t?.album);
-        updateEl(els.spotify, null, !!t?.spotifyUrl, t?.spotifyUrl || '#');
-        updateEl(els.google, null, !!t, t ? `https://www.google.com/search?q=${encodeURIComponent(t.artists.join(' ') + ' ' + t.title)}` : '#');
+
+        const hasTrack = !!t;
+        els.spotify.href = t?.spotifyUrl || '#';
+        updateEl(els.spotify, null, hasTrack);
+
+        els.google.href = t ? `https://www.google.com/search?q=${encodeURIComponent(t.artists.join(' ') + ' ' + t.title)}` : '#';
+        updateEl(els.google, null, hasTrack);
+
         updateEl(els.reload, null, isError);
 
         const imgUrl = t?.imageUrl || '';
