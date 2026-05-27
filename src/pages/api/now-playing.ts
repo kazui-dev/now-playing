@@ -80,6 +80,7 @@ const fetchNowPlaying = async (accessToken: string) =>
   fetch(NOW_PLAYING_ENDPOINT, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'Accept-Language': 'ja',
     },
   });
 
