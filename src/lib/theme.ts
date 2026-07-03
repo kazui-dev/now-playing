@@ -4,7 +4,7 @@ export type ResolvedTheme = 'light' | 'dark';
 export const THEME_STORAGE_KEY = 'theme-preference';
 export const THEME_COLORS = {
   light: '#ffffff',
-  dark: '#0f172a',
+  dark: '#09090b',
 } as const;
 
 export const getSystemTheme = (): ResolvedTheme => {
