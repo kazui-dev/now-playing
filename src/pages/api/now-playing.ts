@@ -1,20 +1,11 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import {
+  SpotifyConfigError,
+  SpotifyReauthRequiredError,
+  getAccessToken,
+} from '@/lib/spotify-auth';
 
-const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const NOW_PLAYING_ENDPOINT = 'https://api.spotify.com/v1/me/player/currently-playing';
-const TOKEN_BUFFER_MS = 30_000;
-
-type SpotifyEnv = {
-  SPOTIFY_CLIENT_ID: string;
-  SPOTIFY_CLIENT_SECRET: string;
-  SPOTIFY_REFRESH_TOKEN: string;
-};
-
-const runtimeEnv = env as unknown as SpotifyEnv;
-
-let cachedAccessToken: string | null = null;
-let tokenExpiresAt = 0;
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -25,55 +16,26 @@ const jsonResponse = (body: unknown, status = 200) =>
     },
   });
 
-const getCredentials = () => {
-  const clientId = runtimeEnv.SPOTIFY_CLIENT_ID;
-  const clientSecret = runtimeEnv.SPOTIFY_CLIENT_SECRET;
-  const refreshToken = runtimeEnv.SPOTIFY_REFRESH_TOKEN;
-
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error('Spotify credentials are not configured.');
+/**
+ * トークン取得の失敗はレスポンスに詳細を載せず、原因の種類だけを返す。
+ * 詳細は Workers のログ側に出す。
+ */
+const tokenErrorResponse = (error: unknown) => {
+  if (error instanceof SpotifyReauthRequiredError) {
+    console.error('[spotify] refresh token expired; re-authorize at /spotify/login');
+    return jsonResponse(
+      { error: 'Spotify の再認証が必要です。', code: 'reauthorization_required' },
+      503,
+    );
   }
 
-  return { clientId, clientSecret, refreshToken };
-};
-
-const requestAccessToken = async (forceRefresh = false) => {
-  const now = Date.now();
-  if (!forceRefresh && cachedAccessToken && now < tokenExpiresAt - TOKEN_BUFFER_MS) {
-    return cachedAccessToken;
+  if (error instanceof SpotifyConfigError) {
+    console.error('[spotify] configuration error:', error.message);
+    return jsonResponse({ error: error.message, code: 'configuration_error' }, 500);
   }
 
-  const { clientId, clientSecret, refreshToken } = getCredentials();
-  const payload = new URLSearchParams({
-    grant_type: 'refresh_token',
-    refresh_token: refreshToken,
-  });
-  const basicAuth = btoa(`${clientId}:${clientSecret}`);
-
-  const tokenResponse = await fetch(TOKEN_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${basicAuth}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: payload,
-  });
-
-  if (!tokenResponse.ok) {
-    const errorBody = await tokenResponse.text();
-    throw new Error(`Spotify token refresh failed: ${tokenResponse.status} ${errorBody}`);
-  }
-
-  const tokenData = await tokenResponse.json<{ access_token?: string; expires_in?: number }>();
-
-  if (!tokenData.access_token || !tokenData.expires_in) {
-    throw new Error('Spotify token response is missing required fields.');
-  }
-
-  cachedAccessToken = tokenData.access_token;
-  tokenExpiresAt = now + tokenData.expires_in * 1000;
-
-  return cachedAccessToken;
+  console.error('[spotify] token refresh failed:', error);
+  return jsonResponse({ error: 'Spotify のトークン取得に失敗しました。', code: 'token_error' }, 500);
 };
 
 const fetchNowPlaying = async (accessToken: string) =>
@@ -87,20 +49,18 @@ const fetchNowPlaying = async (accessToken: string) =>
 export const GET: APIRoute = async () => {
   let accessToken: string;
   try {
-    accessToken = await requestAccessToken();
+    accessToken = await getAccessToken();
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Token refresh failed.';
-    return jsonResponse({ error: message }, 500);
+    return tokenErrorResponse(error);
   }
 
   let nowPlayingResponse = await fetchNowPlaying(accessToken);
 
   if (nowPlayingResponse.status === 401) {
     try {
-      accessToken = await requestAccessToken(true);
+      accessToken = await getAccessToken(true);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Token refresh failed.';
-      return jsonResponse({ error: message }, 500);
+      return tokenErrorResponse(error);
     }
     nowPlayingResponse = await fetchNowPlaying(accessToken);
   }
@@ -111,10 +71,9 @@ export const GET: APIRoute = async () => {
 
   if (!nowPlayingResponse.ok) {
     const errorBody = await nowPlayingResponse.text();
+    console.error(`[spotify] now-playing request failed: ${nowPlayingResponse.status} ${errorBody}`);
     return jsonResponse(
-      {
-        error: `Spotify API request failed: ${nowPlayingResponse.status} ${errorBody}`,
-      },
+      { error: 'Spotify API の呼び出しに失敗しました。', code: 'upstream_error' },
       nowPlayingResponse.status,
     );
   }

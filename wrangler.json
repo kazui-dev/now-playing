@@ -3,5 +3,11 @@
   "compatibility_date": "2024-04-03",
   "observability": {
     "enabled": false
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "SPOTIFY_TOKENS",
+      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+    }
+  ]
 }
