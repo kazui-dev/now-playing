@@ -1,0 +1,9 @@
+packages:
+  - .
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd
+
+overrides:
+  "miniflare>undici": "7.30.1"
