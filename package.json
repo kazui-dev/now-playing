@@ -20,7 +20,7 @@
     "@cloudflare/workers-types": "^5.20261022.1",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",
-    "wrangler": "^4.151.3"
+    "wrangler": "^4.152.0"
   },
   "packageManager": "pnpm@10.33.4"
 }
