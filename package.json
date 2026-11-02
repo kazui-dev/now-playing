@@ -12,15 +12,15 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@lucide/astro": "^1.61.0",
-    "astro": "^7.4.2"
+    "@lucide/astro": "^1.64.0",
+    "astro": "^7.4.4"
   },
   "devDependencies": {
-    "@astrojs/cloudflare": "^14.4.2",
-    "@cloudflare/workers-types": "^5.20261022.1",
+    "@astrojs/cloudflare": "^14.4.3",
+    "@cloudflare/workers-types": "^5.20261029.1",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",
-    "wrangler": "^4.151.3"
+    "wrangler": "^4.156.0"
   },
   "packageManager": "pnpm@10.33.4"
 }
